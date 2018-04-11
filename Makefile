@@ -52,10 +52,19 @@ matrix: $(BIN)PearsonsCorrelation.class
 	@echo "Constructing Pearsons correlation matrix"
 	time java -cp .:$(BIN) PearsonsCorrelation -trainingFile data/ra.train -outputFile data/ra.matrix
 
+matrix_small: $(BIN)PearsonsCorrelation.class
+	@echo "Constructing Pearsons correlation matrix"
+	time java -cp .:$(BIN) PearsonsCorrelation -trainingFile data/ra.small.train -outputFile data/ra.small.matrix
+
 predict: $(BIN)MovieRunner.class
 	@echo "Testing the prediction of movie ratings on the full dataset"
 	time java -cp .:$(BIN) MovieRunner -trainingFile data/ra.train -testFile data/ra.test -matrixFile data/ra.matrix
 
+predict_small: $(BIN)MovieRunner.class
+	@echo "Testing the prediction of movie ratings on the full dataset"
+	time java -cp .:$(BIN) MovieRunner -trainingFile data/ra.small.train -testFile data/ra.small.test -matrixFile data/ra.small.matrix
+
 clean : 
 	rm -rf $(BIN)*
+
 
