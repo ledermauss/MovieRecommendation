@@ -1,4 +1,6 @@
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Computes a matrix with Pearson's product-moment correlation coefficients
@@ -18,13 +20,19 @@ import java.util.List;
  *
  */
 public class PearsonsCorrelation {
+    //TODO: design better structure. Take advantage of matrix simmetry
+    private double[][] corr;  //correlation Matrix between users
+
+    private ArrayList<Integer> userIDs;  //maps internal ID to real user ID
+
+    private Map<Integer, Double> userAvgRatings;  //memoizes users mean ratings. Calculated on demand (DP)
 
 
     /**
      * Create an empty PearsonsCorrelation instance with default parameters.
      */
     public PearsonsCorrelation() {
-        super();
+        super(); //NOTE: do not remove super()
         // FILL IN HERE //
     }
 
@@ -33,7 +41,20 @@ public class PearsonsCorrelation {
      */
     public PearsonsCorrelation(MovieHandler ratings) {
         super();
-        // FILL IN HERE //
+        int N = ratings.getNumUsers();
+        this.userIDs = ratings.getUserIDs();
+        corr = new double[N][N];
+        for (int u1 = 0; u1 < N; u1++) {
+            int user1 = this.userIDs.get(u1);
+            for (int u2 = 0; u2 < N; u2++) {
+                int user2 = this.userIDs.get(u2);
+                if (user1 != user2) {
+                    List<MovieRating> ratings1 = ratings.getUsersToRatings().get(user1);
+                    List<MovieRating> ratings2 = ratings.getUsersToRatings().get(user2);
+                    corr[u1][u2] =  correlation(ratings1, ratings2);
+                }
+            }
+        }
     }
 
 
@@ -55,9 +76,9 @@ public class PearsonsCorrelation {
      * @return The Pearson correlation
      */
     public double get(int i, int j) {
-        double correlation = 0;
-        // FILL IN HERE //
-        return correlation;
+        int internalID1 = this.userIDs.indexOf(i);
+        int internalID2 = this.userIDs.indexOf(j);
+        return corr[internalID1][internalID2];
     }
 
 
@@ -68,14 +89,42 @@ public class PearsonsCorrelation {
      *
      * Returns {@code NaN} if the correlation coefficient is not defined.
      *
-     * @param xArray first data array
-     * @param yArray second data array
+     * @param xRatings first data array
+     * @param yRatings second data array
      * @return Returns Pearson's correlation coefficient for the two arrays
      */
     public double correlation(List<MovieRating> xRatings, List<MovieRating> yRatings) {
-        double correlation = 0;
-        // FILL IN HERE //
-        return correlation;
+        // ignores the target movie for prediction (naive)
+        // User Mean: calculated each time (N^2 worst case). Could be optimized with DP (calculate only once, O(N))
+        // but would require changing the parameters (adding user id)
+        double xAvg = meanRating(xRatings);
+        double yAvg = meanRating(yRatings);
+        double cov = 0;
+        double xVar = 0;
+        double yVar = 0;
+        for (MovieRating ratingX:  xRatings){
+            for (MovieRating ratingY: yRatings){
+                if (ratingX.getMovieID() == ratingY.getMovieID()) {
+                    double xErr = ratingX.getRating() - xAvg;
+                    double yErr = ratingY.getRating() - yAvg;
+                    cov += xErr * yErr;
+                    xVar += Math.pow(xErr, 2);
+                    yVar += Math.pow(yErr, 2);
+                    break;  // movieIDs are unique per user. Once two match, search the next one (continue the outer loop)
+                }
+            }
+        }
+        return cov / Math.sqrt(xVar * yVar);
+    }
+
+
+    public double meanRating(List<MovieRating> ratings) {
+        // Functional: return ratings.stream().mapToDouble(MovieRating::getRating).average().getAsDouble();
+        double sum = 0;
+        for (MovieRating r: ratings) {
+            sum += r.getRating();
+        }
+        return sum/ratings.size();
     }
 
 
@@ -108,7 +157,7 @@ public class PearsonsCorrelation {
      * Reads the correlation matrix from a file.
      *
      * @param filename Path to the input file.
-     * @see writeCorrelationMatrix
+     * @see this.readCorrelationMatrix
      */
     public void readCorrelationMatrix(String filename) {
         // FILL IN HERE //
@@ -126,7 +175,7 @@ public class PearsonsCorrelation {
                 trainingFile = args[i+1];
             } else if(arg.equals("-outputFile")) {
                 outputFile = args[i+1];
-            } 
+            }
             // ADD ADDITIONAL PARAMETERS //
             i += 2;
         }
