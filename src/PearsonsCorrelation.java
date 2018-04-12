@@ -1,5 +1,9 @@
+import java.io.*;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -41,20 +45,29 @@ public class PearsonsCorrelation {
      */
     public PearsonsCorrelation(MovieHandler ratings) {
         super();
+        //TODO: calculate correlations only if necessary (on get)
         int N = ratings.getNumUsers();
         this.userIDs = ratings.getUserIDs();
         corr = new double[N][N];
+
+        long start = System.currentTimeMillis();
+        System.out.println("Calculating corr matrix...");
         for (int u1 = 0; u1 < N; u1++) {
             int user1 = this.userIDs.get(u1);
-            for (int u2 = 0; u2 < N; u2++) {
+            // u2 = u1: since matrix is simmetric, correlations are calculated only once
+            // (upper right triangle, excluded diagonals). This reduces matrix size in half
+            for (int u2 = u1 + 1; u2 < N; u2++) {
                 int user2 = this.userIDs.get(u2);
-                if (user1 != user2) {
+                if (user1 != user2) { // TODO: can this check be eliminated? Mappings should be unique
                     List<MovieRating> ratings1 = ratings.getUsersToRatings().get(user1);
                     List<MovieRating> ratings2 = ratings.getUsersToRatings().get(user2);
                     corr[u1][u2] =  correlation(ratings1, ratings2);
                 }
             }
         }
+        long elapsedTimeMillis = System.currentTimeMillis() - start;
+        System.out.println("Done, took " + elapsedTimeMillis/1000F + " seconds");
+        System.out.println("==========================");
     }
 
 
@@ -76,9 +89,24 @@ public class PearsonsCorrelation {
      * @return The Pearson correlation
      */
     public double get(int i, int j) {
-        int internalID1 = this.userIDs.indexOf(i);
-        int internalID2 = this.userIDs.indexOf(j);
-        return corr[internalID1][internalID2];
+        if (i == j) return 1; //  avoids unnecessary calculation
+        // get the internal ids
+        int ID1 = this.userIDs.indexOf(i);
+        int ID2 = this.userIDs.indexOf(j);
+        // return only the upper right triangle (bottom left is empty)
+        return (ID1 < ID2) ? corr[ID1][ID2] : corr[ID2][ID1];
+    }
+
+    /**
+     * Same as previous mehthod, but given internal ids. Used when printing the matrix
+     * @param i internal user id
+     * @param j internal user id
+     * @return
+     */
+    public double getInternal(int i, int j) {
+        if (i == j) return 1;
+        else if (i < j) return corr[i][j];
+        else return corr[j][i];  // low-left diagonal, access symmetric position on upper-wright
     }
 
 
@@ -97,14 +125,15 @@ public class PearsonsCorrelation {
         // ignores the target movie for prediction (naive)
         // User Mean: calculated each time (N^2 worst case). Could be optimized with DP (calculate only once, O(N))
         // but would require changing the parameters (adding user id)
+        // TODO: calculate mean only once if possible/convenient
         double xAvg = meanRating(xRatings);
         double yAvg = meanRating(yRatings);
-        double cov = 0;
-        double xVar = 0;
-        double yVar = 0;
+        double cov = 0, xVar = 0, yVar = 0;
+        int common = 0;
         for (MovieRating ratingX:  xRatings){
             for (MovieRating ratingY: yRatings){
                 if (ratingX.getMovieID() == ratingY.getMovieID()) {
+                    common++;
                     double xErr = ratingX.getRating() - xAvg;
                     double yErr = ratingY.getRating() - yAvg;
                     cov += xErr * yErr;
@@ -114,11 +143,14 @@ public class PearsonsCorrelation {
                 }
             }
         }
-        return cov / Math.sqrt(xVar * yVar);
+        if (common == 0) // nothing in common
+            return Double.NaN;
+        else
+            return cov / Math.sqrt(xVar * yVar);
     }
 
 
-    public double meanRating(List<MovieRating> ratings) {
+    private double meanRating(List<MovieRating> ratings) {
         // Functional: return ratings.stream().mapToDouble(MovieRating::getRating).average().getAsDouble();
         double sum = 0;
         for (MovieRating r: ratings) {
@@ -149,7 +181,55 @@ public class PearsonsCorrelation {
      * @param filename Path to the output file.
      */
     public void writeCorrelationMatrix(String filename) {
-        // FILL IN HERE //
+        // buffered writer: faster, buffers before writing to disk
+        BufferedWriter bw = null;
+        try {
+            Writer fw = new FileWriter(filename, false);
+            bw = new BufferedWriter(fw);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        int N = this.userIDs.size();
+        DecimalFormat df = getDecimalFormat();
+        long start = System.currentTimeMillis();
+
+        System.out.println("Writing data...");
+        try {
+            // row and col correspond to users internal ID's
+            for (int row = 0; row < N; row++){
+                    for (int col = 0; col < N; col++) {
+                        double corr = this.getInternal(row, col);
+                        String toWrite = Double.isNaN(corr) ? "NaN" : df.format(corr);
+                        bw.write(toWrite);
+                        // Always append a comma, except on the last column
+                        if (col <= N -1) bw.write(',');
+                    }
+                    bw.newLine();
+                    // flush after each row to prevent massive buffer size (each row is a MB)
+                    bw.flush();
+            }
+            bw.close();
+            long elapsedTimeMillis = System.currentTimeMillis() - start;
+            System.out.println("Done, took " + df.format(elapsedTimeMillis/(1000F)) + " seconds");
+            System.out.println("==========================");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    /**
+     * Creates a decimal formatter that follows the specification: always 4 decimals,
+     * padded with 0's if necessary, no 0's to the left of decimal separator
+     * @return the formatter with the corresponding pattern
+     */
+    DecimalFormat getDecimalFormat(){
+        // US locale: sets . as decimal separator
+        NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
+        DecimalFormat df = (DecimalFormat)nf;
+        // right 0's specify decimals, and add trailing 0 if necessary
+        df.applyPattern("###.0000");
+        return df;
     }
 
 
