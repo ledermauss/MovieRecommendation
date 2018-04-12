@@ -195,6 +195,14 @@ public class PearsonsCorrelation {
 
         System.out.println("Writing data...");
         try {
+            // first line - matrix size
+            bw.write(Integer.toString(N));
+            bw.newLine();
+
+            //second line
+            bw.write("param1=raul,param2=vazquez");
+            bw.newLine();
+
             // row and col correspond to users internal ID's
             for (int row = 0; row < N; row++){
                     for (int col = 0; col < N; col++) {
@@ -205,7 +213,7 @@ public class PearsonsCorrelation {
                         if (col <= N -1) bw.write(',');
                     }
                     bw.newLine();
-                    // flush after each row to prevent massive buffer size (each row is a MB)
+                    // flush after each row to prevent massive buffer size (each row is 1 MB)
                     bw.flush();
             }
             bw.close();

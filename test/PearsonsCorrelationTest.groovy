@@ -17,22 +17,24 @@ class PearsonsCorrelationTest extends GroovyTestCase {
 
     @Test
     void testGet() {
-        String trainingFile = ".\\data\\ra.testing.txt"
+        String trainingFile = "test-res/ra.testing.txt"
         MovieHandler ratings = new MovieHandler(trainingFile)
         PearsonsCorrelation p = new PearsonsCorrelation(ratings)
-        p.moviesUser = new HashMap<Integer, Double>()
+        //p.moviesUser = new HashMap<Integer, Double>()
         Double cor = p.get(1, 2)
-        assertEquals("Get Passed", 0.9264,  cor)
+        println cor
+        DecimalFormat df = getDecimalFormat()
+        assertEquals("Get Passed", "0.9264",  df.format(cor))
     }
 
     @Test
     void testGetIdentical() {
-        String trainingFile = ".\\data\\ra.testing.txt"
+        String trainingFile = "test-res/ra.testing.txt"
         MovieHandler ratings = new MovieHandler(trainingFile)
         PearsonsCorrelation p = new PearsonsCorrelation(ratings)
         Double cor = p.get(1, 1)
-        DecimalFormat df = new DecimalFormat("#0.0000")
-        assertEquals("Correlation Passed", 1.0000,  Double.parseDouble(df.format(cor)) )
+        DecimalFormat df = getDecimalFormat()
+        assertEquals("Correlation Passed", "1.0000",  (df.format(cor)))
     }
 
     /**
@@ -130,10 +132,9 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         ratingsY.add(mr10)
 
         PearsonsCorrelation p = new PearsonsCorrelation()
-        p.moviesUser = new HashMap<Integer, Double>()
+        // p.moviesUser = new HashMap<Integer, Double>()
         Double cor = p.correlation(ratingsX, ratingsY)
-        DecimalFormat df = new DecimalFormat("#0.00")
-        assertEquals("Correlation Passed", Double.NaN,  Double.parseDouble(df.format(cor)) )
+        assertEquals("Correlation Passed", true, Double.isNaN(cor))
     }
 
     @Test
@@ -157,38 +158,38 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         ratingsY.add(mr8)
 
         PearsonsCorrelation p = new PearsonsCorrelation()
-        p.moviesUser = new HashMap<Integer, Double>()
+        // p.moviesUser = new HashMap<Integer, Double>()
         Double cor = p.correlation(ratingsX, ratingsY)
         assertEquals("Correlation Passed", Double.NaN,  cor )
     }
 
     @Test
     void testMatrixFirstLine() {
-        MovieHandler ratings = new MovieHandler(".\\data\\ra.testing.txt")
+        MovieHandler ratings = new MovieHandler("test-res/ra.testing.txt")
         PearsonsCorrelation matrix = new PearsonsCorrelation(ratings)
-        matrix.writeCorrelationMatrix(".\\out\\output.txt")
+        matrix.writeCorrelationMatrix("test-res/output.txt")
 
-        String line = readLine(".\\out\\output.txt",0)
+        String line = readLine("test-res/output.txt",0)
         assertEquals("Test Passed", "4",  line)
     }
 
     @Test
     void testMatrixThirdLine() {
-        MovieHandler ratings = new MovieHandler(".\\data\\ra.testing.txt")
+        MovieHandler ratings = new MovieHandler("test-res/ra.testing.txt")
         PearsonsCorrelation matrix = new PearsonsCorrelation(ratings)
-        matrix.writeCorrelationMatrix(".\\out\\output.txt")
+        matrix.writeCorrelationMatrix("test-res/output.txt")
 
-        String line = readLine(".\\out\\output.txt",3)
+        String line = readLine("test-res/output.txt",3)
         assertEquals("Test Passed", "NaN,1.0,0.9264,NaN",  line)
     }
 
     @Test
     void testMatrixWidth() {
-        MovieHandler ratings = new MovieHandler(".\\data\\ra.testing.txt")
+        MovieHandler ratings = new MovieHandler("test-res/ra.testing.txt")
         PearsonsCorrelation matrix = new PearsonsCorrelation(ratings)
-        matrix.writeCorrelationMatrix(".\\out\\output.txt")
+        matrix.writeCorrelationMatrix("test-res/output.txt")
 
-        String line = readLine(".\\out\\output.txt",3)
+        String line = readLine("test-res/output.txt",3)
         int len = line.split(",").length
         assertEquals("Test Passed", 4,  len)
     }
