@@ -145,6 +145,11 @@ public class PearsonsCorrelation {
         }
         if (common == 0) // nothing in common
             return Double.NaN;
+        else if (xVar == 0 || yVar == 0)
+            // int this cse the equation is undefined, it is a limitation of the pearson coefficient.
+            // the equation becomes undetermined (0/0), even if all data is the same.
+            // see: https://stats.stackexchange.com/questions/9068/pearson-correlation-of-data-sets-with-possibly-zero-standard-deviation
+            return Double.NaN;
         else
             return cov / Math.sqrt(xVar * yVar);
     }
@@ -210,7 +215,7 @@ public class PearsonsCorrelation {
                         String toWrite = Double.isNaN(corr) ? "NaN" : df.format(corr);
                         bw.write(toWrite);
                         // Always append a comma, except on the last column
-                        if (col <= N -1) bw.write(',');
+                        if (col < N -1) bw.write(',');
                     }
                     bw.newLine();
                     // flush after each row to prevent massive buffer size (each row is 1 MB)

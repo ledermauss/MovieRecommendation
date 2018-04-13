@@ -21,10 +21,11 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         MovieHandler ratings = new MovieHandler(trainingFile)
         PearsonsCorrelation p = new PearsonsCorrelation(ratings)
         //p.moviesUser = new HashMap<Integer, Double>()
-        Double cor = p.get(1, 2)
+        Double cor = p.get(2,3)
         println cor
         DecimalFormat df = getDecimalFormat()
-        assertEquals("Get Passed", "0.9264",  df.format(cor))
+        // NOTE: if only movies 370 - 374 are left for users 2 and 3, coefficient becomes .9264
+        assertEquals("Get Passed", ".9172",  df.format(cor))
     }
 
     @Test
@@ -75,27 +76,12 @@ class PearsonsCorrelationTest extends GroovyTestCase {
 
     @Test
     void testCorrelationIdenticalItems() {
-        MovieRating mr1 = new MovieRating(1,5)
-        MovieRating mr2 = new MovieRating(2,4)
-        MovieRating mr3 = new MovieRating(3,3.5f)
-        MovieRating mr4 = new MovieRating(4,5)
-        MovieRating mr5 = new MovieRating(5,2)
-
         ArrayList <MovieRating> ratingsX = new ArrayList<MovieRating>()
         ArrayList <MovieRating> ratingsY = new ArrayList<MovieRating>()
-        // Adding the identical ratings
-        // For X
-        ratingsX.add(mr1)
-        ratingsX.add(mr2)
-        ratingsX.add(mr3)
-        ratingsX.add(mr4)
-        ratingsX.add(mr5)
-        // For Y
-        ratingsY.add(mr1)
-        ratingsY.add(mr2)
-        ratingsY.add(mr3)
-        ratingsY.add(mr4)
-        ratingsY.add(mr5)
+        for (int i = 0; i < 5; i++) {
+            ratingsX.add(new MovieRating(i, i + 1))
+            ratingsY.add(new MovieRating(i, i + 1))
+        }
 
         PearsonsCorrelation p = new PearsonsCorrelation()
         // p.moviesUser = new HashMap<Integer, Double>()
@@ -163,6 +149,27 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         assertEquals("Correlation Passed", Double.NaN,  cor )
     }
 
+    /**
+     * Tests what happens when one user has 0 variance. Expects NaN: Pearson correlation
+     * is undefined in that case
+     */
+    @Test
+    void testCorrelationUndefined() {
+        ArrayList <MovieRating> ratingsX = new ArrayList<MovieRating>()
+        ArrayList <MovieRating> ratingsY = new ArrayList<MovieRating>()
+        for (int i = 0; i < 10; i++) {
+            // Even though they are the same, result should be NaN: var is 0
+            ratingsX.add(new MovieRating(i, 2))
+            ratingsY.add(new MovieRating(i, 2))
+        }
+
+        PearsonsCorrelation p = new PearsonsCorrelation()
+        // p.moviesUser = new HashMap<Integer, Double>()
+        Double cor = p.correlation(ratingsX, ratingsY)
+        assertEquals("Correlation Passed", Double.NaN,  cor )
+
+    }
+
     @Test
     void testMatrixFirstLine() {
         MovieHandler ratings = new MovieHandler("test-res/ra.testing.txt")
@@ -174,13 +181,13 @@ class PearsonsCorrelationTest extends GroovyTestCase {
     }
 
     @Test
-    void testMatrixThirdLine() {
+    void testMatrixFourthLine() {
         MovieHandler ratings = new MovieHandler("test-res/ra.testing.txt")
         PearsonsCorrelation matrix = new PearsonsCorrelation(ratings)
         matrix.writeCorrelationMatrix("test-res/output.txt")
 
         String line = readLine("test-res/output.txt",3)
-        assertEquals("Test Passed", "NaN,1.0,0.9264,NaN",  line)
+        assertEquals("Test Passed", "NaN,1.0000,.9172,NaN",  line)
     }
 
     @Test

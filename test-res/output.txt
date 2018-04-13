@@ -1,6 +1,6 @@
 4
 param1=raul,param2=vazquez
-1.0000,NaN,NaN,NaN,
-NaN,1.0000,.9172,NaN,
-NaN,.9172,1.0000,NaN,
-NaN,NaN,NaN,1.0000,
+1.0000,NaN,NaN,NaN
+NaN,1.0000,.9172,NaN
+NaN,.9172,1.0000,NaN
+NaN,NaN,NaN,1.0000
