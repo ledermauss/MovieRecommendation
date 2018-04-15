@@ -1,9 +1,7 @@
 import java.io.*;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 /**
  * Computes a matrix with Pearson's product-moment correlation coefficients
@@ -23,14 +21,17 @@ import java.util.Locale;
  *
  */
 public class PearsonsCorrelation {
-    //TODO: design better structure. Take advantage of matrix simmetry
-    private double[][] corr;  //correlation Matrix between users
+    /** corr: list of lists implementation of the correlation matrix. Using internal ids.
+     * Very sparse matrix: most elements are NaN. They won't be stored to save space.
+     * Used sets for O(1) speed of .contains(). Map of sets approaches the LOL
+     **/
+    private Map<Integer, Set<Neighbor>> corr;
     private ArrayList<Integer> userIDs;  //maps internal ID to real user ID
     private Double[] userAvgRatings;    //stores users average ratings to avoid recalculations
-    /*
-    Following arguments pass user internal ID to correlation function. That way, userAvgRatings
-    can be stored.
-     */
+    /**
+     * Following arguments pass user internal ID to correlation function. That way, userAvgRatings
+     * can be stored by setUserAvgRatings.
+     **/
     private int currentUser1;
     private int currentUser2;
 
@@ -48,26 +49,32 @@ public class PearsonsCorrelation {
      */
     public PearsonsCorrelation(MovieHandler ratings) {
         super();
-        //TODO: calculate correlations only if necessary (on get)
         int N = ratings.getNumUsers();
         this.userIDs = ratings.getUserIDs();
         this.userAvgRatings = new Double[N];
-        this.corr = new double[N][N];
+        this.corr = new HashMap<>();
 
         long start = System.currentTimeMillis();
         System.out.println("Calculating corr matrix...");
         for (int u1 = 0; u1 < N; u1++) {
             int user1 = this.userIDs.get(u1);
             // u2 = u1: since matrix is simmetric, correlations are calculated only once
-            // (upper right triangle, excluded diagonals). This reduces matrix size in half
+            // and stored twice, once for each user in the pair
             for (int u2 = u1 + 1; u2 < N; u2++) {
                 int user2 = this.userIDs.get(u2);
-                // pass info to corr function, and extract the ratings
+                // pass info to correlation function, and extract the ratings
                 this.currentUser1 = u1;
                 this.currentUser2 = u2;
                 List<MovieRating> ratings1 = ratings.getUsersToRatings().get(user1);
                 List<MovieRating> ratings2 = ratings.getUsersToRatings().get(user2);
-                corr[u1][u2] =  correlation(ratings1, ratings2);
+                double sim = correlation(ratings1, ratings2);
+                // add an entry to the similarity matrix twice. This doubles the spaces requirements,
+                // but speeds up neighborhood retrieval by a factor of k (k = number of neighbors).
+                // NaN are not added -> safes much space
+                if (!Double.isNaN(sim)) {
+                    addNeighbor(u1, u2, sim);
+                    addNeighbor(u2, u1, sim);
+                }
             }
         }
         long elapsedTimeMillis = System.currentTimeMillis() - start;
@@ -75,17 +82,32 @@ public class PearsonsCorrelation {
         System.out.println("==========================");
     }
 
+
     /**
-     *  Creates a default, empty object, and sets some parameters. For testing purposes, not
-     *  used by the code
+     * Adds a neighbor to the LOL representation of the correlation matrix
+     * @param userId internal id of user whose neighborhood will be modified
+     * @param neighborId neighbor to add
+     * @param sim pearson correlation coefficient
      */
 
+    private void addNeighbor(int userId, int neighborId, double sim) {
+        if (this.corr.get(userId) == null ) {  //if no neighborhood, create it
+            Set<Neighbor> neighborhood = new HashSet<>();
+            neighborhood.add(new Neighbor(neighborId, sim));
+            this.corr.put(userId, neighborhood);
+        } else {
+            this.corr.get(userId).add(new Neighbor(neighborId, sim));
+        }
+    }
+
+    /**
+     *  Creates a default, empty object, and sets some parameters. For testing purposes
+     */
     public PearsonsCorrelation(int N, int user1, int user2) {
         this.userAvgRatings = new Double[N];
         this.currentUser1 = user1;
         this.currentUser2 = user2;
     }
-
 
     /**
      * Load a previously computed PearsonsCorrelation instance.
@@ -109,19 +131,28 @@ public class PearsonsCorrelation {
         int ID1 = this.userIDs.indexOf(i);
         int ID2 = this.userIDs.indexOf(j);
         // return only the upper right triangle (bottom left is empty)
-        return (ID1 < ID2) ? corr[ID1][ID2] : corr[ID2][ID1];
+        return getInternal(ID1, ID2);
     }
 
     /**
-     * Same as previous mehthod, but given internal ids. Used when printing the matrix
+     * Same as previous mehthod, but given internal ids.
+     * user j in i's neighborhood
      * @param i internal user id
      * @param j internal user id
-     * @return
+     * @return users correlation if it exists, NaN other wise
      */
-    public double getInternal(int i, int j) {
+    private double getInternal(int i, int j) {
         if (i == j) return 1;
-        else if (i < j) return corr[i][j];
-        else return corr[j][i];  // low-left diagonal, access symmetric position on upper-wright
+        Set<Neighbor> neighbors = corr.get(i);
+        if (neighbors == null) return Double.NaN;  // if neighborhood is empty
+        //.contains: complexity O(1)
+        // often user pairs are not neighbours, so checking first prevents looping
+        if (!neighbors.contains(new Neighbor(j, 0)))
+            return Double.NaN;
+        for (Neighbor n: neighbors){
+            if (n.getUserID() == j) return n.getSimilarity();
+        }
+        return Double.NaN; // should never be reached
     }
 
 
@@ -170,10 +201,9 @@ public class PearsonsCorrelation {
      * Retrieves user average rating if it was calculated previously, and calculates it and stores
      * if necessary
      * @param user internal id of user that ratings belongs to
-     * @param ratings
      * @return the avg rating for that user
      */
-    public double setUserAvgRating(int user, List<MovieRating> ratings){
+    private double setUserAvgRating(int user, List<MovieRating> ratings){
         double avg;
         if (this.userAvgRatings[user] == null){  //avg non existent: calculate it
             //avg = ratings.stream().mapToDouble(MovieRating::getRating).average().getAsDouble();
@@ -268,7 +298,7 @@ public class PearsonsCorrelation {
      * padded with 0's if necessary, no 0's to the left of decimal separator
      * @return the formatter with the corresponding pattern
      */
-    DecimalFormat getDecimalFormat(){
+    private DecimalFormat getDecimalFormat(){
         // US locale: sets . as decimal separator
         NumberFormat nf = NumberFormat.getNumberInstance(Locale.US);
         DecimalFormat df = (DecimalFormat)nf;

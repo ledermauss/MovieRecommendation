@@ -22,7 +22,6 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         PearsonsCorrelation p = new PearsonsCorrelation(ratings)
         //p.moviesUser = new HashMap<Integer, Double>()
         Double cor = p.get(2,3)
-        println cor
         DecimalFormat df = getDecimalFormat()
         // NOTE: if only movies 370 - 374 are left for users 2 and 3, coefficient becomes .9264
         assertEquals("Get Passed", ".9172",  df.format(cor))
