@@ -4,7 +4,6 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * Computes a matrix with Pearson's product-moment correlation coefficients
@@ -26,17 +25,21 @@ import java.util.Map;
 public class PearsonsCorrelation {
     //TODO: design better structure. Take advantage of matrix simmetry
     private double[][] corr;  //correlation Matrix between users
-
     private ArrayList<Integer> userIDs;  //maps internal ID to real user ID
-
-    private Map<Integer, Double> userAvgRatings;  //memoizes users mean ratings. Calculated on demand (DP)
+    private Double[] userAvgRatings;    //stores users average ratings to avoid recalculations
+    /*
+    Following arguments pass user internal ID to correlation function. That way, userAvgRatings
+    can be stored.
+     */
+    private int currentUser1;
+    private int currentUser2;
 
 
     /**
      * Create an empty PearsonsCorrelation instance with default parameters.
      */
     public PearsonsCorrelation() {
-        super(); //NOTE: do not remove super()
+        super();
         // FILL IN HERE //
     }
 
@@ -48,7 +51,8 @@ public class PearsonsCorrelation {
         //TODO: calculate correlations only if necessary (on get)
         int N = ratings.getNumUsers();
         this.userIDs = ratings.getUserIDs();
-        corr = new double[N][N];
+        this.userAvgRatings = new Double[N];
+        this.corr = new double[N][N];
 
         long start = System.currentTimeMillis();
         System.out.println("Calculating corr matrix...");
@@ -58,11 +62,12 @@ public class PearsonsCorrelation {
             // (upper right triangle, excluded diagonals). This reduces matrix size in half
             for (int u2 = u1 + 1; u2 < N; u2++) {
                 int user2 = this.userIDs.get(u2);
-                if (user1 != user2) { // TODO: can this check be eliminated? Mappings should be unique
-                    List<MovieRating> ratings1 = ratings.getUsersToRatings().get(user1);
-                    List<MovieRating> ratings2 = ratings.getUsersToRatings().get(user2);
-                    corr[u1][u2] =  correlation(ratings1, ratings2);
-                }
+                // pass info to corr function, and extract the ratings
+                this.currentUser1 = u1;
+                this.currentUser2 = u2;
+                List<MovieRating> ratings1 = ratings.getUsersToRatings().get(user1);
+                List<MovieRating> ratings2 = ratings.getUsersToRatings().get(user2);
+                corr[u1][u2] =  correlation(ratings1, ratings2);
             }
         }
         long elapsedTimeMillis = System.currentTimeMillis() - start;
@@ -70,6 +75,16 @@ public class PearsonsCorrelation {
         System.out.println("==========================");
     }
 
+    /**
+     *  Creates a default, empty object, and sets some parameters. For testing purposes, not
+     *  used by the code
+     */
+
+    public PearsonsCorrelation(int N, int user1, int user2) {
+        this.userAvgRatings = new Double[N];
+        this.currentUser1 = user1;
+        this.currentUser2 = user2;
+    }
 
 
     /**
@@ -113,7 +128,8 @@ public class PearsonsCorrelation {
 
     /**
      * Computes the Pearson's product-moment correlation coefficient between
-     * the ratings of two users.
+     * the ratings of two users. It reads the user ids from class attributes
+     * rather than function parameters (skeletons cannot be modified)
      *
      * Returns {@code NaN} if the correlation coefficient is not defined.
      *
@@ -122,12 +138,8 @@ public class PearsonsCorrelation {
      * @return Returns Pearson's correlation coefficient for the two arrays
      */
     public double correlation(List<MovieRating> xRatings, List<MovieRating> yRatings) {
-        // ignores the target movie for prediction (naive)
-        // User Mean: calculated each time (N^2 worst case). Could be optimized with DP (calculate only once, O(N))
-        // but would require changing the parameters (adding user id)
-        // TODO: calculate mean only once if possible/convenient
-        double xAvg = meanRating(xRatings);
-        double yAvg = meanRating(yRatings);
+        double xAvg = setUserAvgRating(this.currentUser1, xRatings);
+        double yAvg = setUserAvgRating(this.currentUser2, yRatings);
         double cov = 0, xVar = 0, yVar = 0;
         int common = 0;
         for (MovieRating ratingX:  xRatings){
@@ -154,9 +166,29 @@ public class PearsonsCorrelation {
             return cov / Math.sqrt(xVar * yVar);
     }
 
+    /**
+     * Retrieves user average rating if it was calculated previously, and calculates it and stores
+     * if necessary
+     * @param user internal id of user that ratings belongs to
+     * @param ratings
+     * @return the avg rating for that user
+     */
+    public double setUserAvgRating(int user, List<MovieRating> ratings){
+        double avg;
+        if (this.userAvgRatings[user] == null){  //avg non existent: calculate it
+            //avg = ratings.stream().mapToDouble(MovieRating::getRating).average().getAsDouble();
+            avg = meanRating(ratings);
+            this.userAvgRatings[user] = avg;
+        } else {   //avg was calculated previously
+            avg = this.userAvgRatings[user];
+        }
+        return avg;
+    }
 
+    /**
+     * Calculates the mean rating for a list of movies. Used to get an user mean rating
+     */
     private double meanRating(List<MovieRating> ratings) {
-        // Functional: return ratings.stream().mapToDouble(MovieRating::getRating).average().getAsDouble();
         double sum = 0;
         for (MovieRating r: ratings) {
             sum += r.getRating();

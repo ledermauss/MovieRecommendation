@@ -67,8 +67,7 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         ratingsY.add(mr9)
         ratingsY.add(mr10)
 
-        PearsonsCorrelation p = new PearsonsCorrelation()
-        //p.moviesUser = p.getTableMovies(ratingsX)
+        PearsonsCorrelation p = new PearsonsCorrelation(2, 0, 1)
         Double cor = p.correlation(ratingsX, ratingsY)
         DecimalFormat df = getDecimalFormat()
         assertEquals("Correlation Passed", 0.9945,  Double.parseDouble(df.format(cor)) )
@@ -83,9 +82,7 @@ class PearsonsCorrelationTest extends GroovyTestCase {
             ratingsY.add(new MovieRating(i, i + 1))
         }
 
-        PearsonsCorrelation p = new PearsonsCorrelation()
-        // p.moviesUser = new HashMap<Integer, Double>()
-        // p.moviesUser = p.getTableMovies(ratingsX)
+        PearsonsCorrelation p = new PearsonsCorrelation(2, 0, 1)
         Double cor = p.correlation(ratingsX, ratingsY)
         DecimalFormat df = getDecimalFormat()
         assertEquals("Correlation Passed", "1.0000", (df.format(cor)))
@@ -117,8 +114,7 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         ratingsY.add(mr9)
         ratingsY.add(mr10)
 
-        PearsonsCorrelation p = new PearsonsCorrelation()
-        // p.moviesUser = new HashMap<Integer, Double>()
+        PearsonsCorrelation p = new PearsonsCorrelation(2, 0, 1)
         Double cor = p.correlation(ratingsX, ratingsY)
         assertEquals("Correlation Passed", true, Double.isNaN(cor))
     }
@@ -143,8 +139,7 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         ratingsY.add(mr7)
         ratingsY.add(mr8)
 
-        PearsonsCorrelation p = new PearsonsCorrelation()
-        // p.moviesUser = new HashMap<Integer, Double>()
+        PearsonsCorrelation p = new PearsonsCorrelation(2, 0, 1)
         Double cor = p.correlation(ratingsX, ratingsY)
         assertEquals("Correlation Passed", Double.NaN,  cor )
     }
@@ -163,7 +158,7 @@ class PearsonsCorrelationTest extends GroovyTestCase {
             ratingsY.add(new MovieRating(i, 2))
         }
 
-        PearsonsCorrelation p = new PearsonsCorrelation()
+        PearsonsCorrelation p = new PearsonsCorrelation(2, 0, 1)
         // p.moviesUser = new HashMap<Integer, Double>()
         Double cor = p.correlation(ratingsX, ratingsY)
         assertEquals("Correlation Passed", Double.NaN,  cor )
