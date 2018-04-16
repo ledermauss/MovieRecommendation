@@ -76,7 +76,7 @@ public class PearsonsCorrelation {
                 double sim = correlation(ratings1, ratings2);
                 // add an entry to the similarity matrix twice. This doubles the spaces requirements,
                 // but speeds up neighborhood retrieval by a factor of k (k = number of neighbors).
-                // NaN are not added -> safes much space
+                // NaN are not added -> saves much space
                 if (!Double.isNaN(sim)) {
                     addNeighbor(u1, new Neighbor(u2, sim), kNeighbors);
                     addNeighbor(u2, new Neighbor(u1, sim), kNeighbors);
@@ -163,7 +163,6 @@ public class PearsonsCorrelation {
             }
         }
         /* TODO:
-        * Add k neighbors filtering
         * Add significance (t-test)
         * Add minimal common films
          */
@@ -174,8 +173,10 @@ public class PearsonsCorrelation {
             // the equation becomes undetermined (0/0), even if all data is the same.
             // see: https://stats.stackexchange.com/questions/9068/pearson-correlation-of-data-sets-with-possibly-zero-standard-deviation
             return Double.NaN;
-        else
-            return cov / Math.sqrt(xVar * yVar);
+        else {
+            double corr = cov / Math.sqrt(xVar * yVar);
+            return (corr > 1)? 1 : corr; //patch to rounding problem (sometimes returned 1.000000000002)
+        }
     }
 
     /**
@@ -207,8 +208,6 @@ public class PearsonsCorrelation {
         return sum/ratings.size();
     }
 
-
-
     /**
      * Returns a set with all neighbors from an user
      * @param userID internal ID
@@ -218,13 +217,43 @@ public class PearsonsCorrelation {
     }
 
     /**
-     * Finds the nei
+     * Adds a neighbor to the LOL representation of the correlation matrix,
+     * if it is possible. Also creates a neighborhood if necessary
+     * If neighbourhood is bigger than k, least similar neighbour is removed
+     * Therefore, complexity is O(kN). Could be reduced using a Heap Sort
+     * @param userId internal id of user whose neighborhood will be modified
+     * @param newNeighbor neighbor to add
+     * @param k max size of the neighbourhood
+     */
+    private void addNeighbor(int userId, Neighbor newNeighbor, int k) {
+        // create new neighborhood if it doesn't exist
+        if (this.corr.get(userId) == null ) {
+            Set<Neighbor> neighborhood = new HashSet<>();
+            neighborhood.add(newNeighbor);
+            this.corr.put(userId, neighborhood);
+        // if k limit is reached, check if something can be removed
+        } else if (getUserNeighborhood(userId).size() >= k) {
+            Neighbor leastSim = getLeastSimilarNeighbour(getUserNeighborhood(userId));
+            // remove leastSim if similarity is lower than the new neighbor
+            // do nothing if new neighbor is les similar
+            if (leastSim.compareTo(newNeighbor) < 0) {
+                this.corr.get(userId).remove(leastSim);
+                this.corr.get(userId).add(newNeighbor);
+            }
+         // neighborhood exists, and size is not exceeded
+        } else {
+            this.corr.get(userId).add(newNeighbor);
+        }
+    }
+
+    /**
+     * Finds the neighbor with lowest similarity of a neighborhood
      * @param neighbors neighbourhood of a user
-     * @return
+     * @return the neighbor with lowest similarity
      */
     public Neighbor getLeastSimilarNeighbour (Set<Neighbor> neighbors) {
-        //start by max posssible value
-        double leastSim = 1;
+        //start by max possible value
+        double leastSim = Double.MAX_VALUE;
         int leastID = 1000;
         for (Neighbor n: neighbors) {
             //note: could use .abs (considering disimilarity too)
@@ -236,33 +265,6 @@ public class PearsonsCorrelation {
         return new Neighbor(leastID, leastSim);
     }
 
-    /**
-     * Adds a neighbor to the LOL representation of the correlation matrix,
-     * if it is possible. Also creates a neighborhood if necessary
-     * @param userId internal id of user whose neighborhood will be modified
-     * @param newNeighbor neighbor to add
-     * @param k max size of the neighbourhood
-     */
-    public void addNeighbor(int userId, Neighbor newNeighbor, int k) {
-        // create new neighborhood if it doesn't exist
-        if (this.corr.get(userId) == null ) {
-            Set<Neighbor> neighborhood = new HashSet<>();
-            neighborhood.add(newNeighbor);
-            this.corr.put(userId, neighborhood);
-        // if k limit is exceeded, check if something can be removed
-        } else if (getUserNeighborhood(userId).size() > k) {
-            Neighbor leastSim = getLeastSimilarNeighbour(getUserNeighborhood(userId));
-            // remove leastSim if similarity is lower than the new neighbor
-            // do nothing if new neighbor is les similar
-            if (leastSim.compareTo(newNeighbor) == -1) {
-                this.corr.get(userId).remove(leastSim);
-                this.corr.get(userId).add(newNeighbor);
-            }
-         // neighborhood exists, and size is not exceeded
-        } else {
-            this.corr.get(userId).add(newNeighbor);
-        }
-    }
 
     /**
      * Returns an user avg rating, calculated already during class construction
@@ -291,7 +293,7 @@ public class PearsonsCorrelation {
     }
 
     /**
-     * Same as previous mehthod, but given internal ids.
+     * Same as previous method, but given internal ids.
      * user j in i's neighborhood
      * @param i internal user id
      * @param j internal user id

@@ -283,6 +283,37 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         assertEquals(5, p.getUserAvgRating(0))
     }
 
+    @Test
+    void testKNeighborsSize() {
+        // test that there are always less than 5 neighbors
+        int k = 5;
+        String trainingFile = "test-res/ra.testing_big.txt"
+        MovieHandler ratings = new MovieHandler(trainingFile)
+        PearsonsCorrelation p = new PearsonsCorrelation(ratings, k)
+        int N = ratings.getNumUsers()
+        int[] sizes = new int[N]
+        boolean kFlag = true  //lesser than k
+        for (int i = 0; i < N; i++) {
+            Set<Neighbor> hood = p.getUserNeighborhood(i)
+            if (hood != null)
+                kFlag = kFlag && (hood.size() <= k)
+        }
+        assertTrue(kFlag)
+    }
+    @Test
+    void testKNeighborsValues() {
+        // test that one of the users has all 1's with their neighbors
+        int k = 5;
+        String trainingFile = "test-res/ra.testing_big.txt"
+        MovieHandler ratings = new MovieHandler(trainingFile)
+        PearsonsCorrelation p = new PearsonsCorrelation(ratings, k)
+        Set<Neighbor> hood = p.getUserNeighborhood(1)
+        // user with id has at least five 1
+        assertEquals(1,
+                p.getLeastSimilarNeighbour(hood).getSimilarity())
+        assertEquals(k, hood.size())
+    }
+
     private static String readLine(String file, int lineNo){
         BufferedReader br
         try {
