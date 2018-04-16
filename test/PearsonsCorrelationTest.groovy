@@ -195,10 +195,6 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         assertEquals("Test Passed", 4,  len)
     }
 
-    @Test
-    void testReadCorrelationMatrix() {
-
-    }
 
     @Test
     void testParseLineCorrelations() {
@@ -241,11 +237,42 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         }
         print results
         assertEquals("Neighbors are ok", 2, neighbors.size())
-        assertFalse(results.contains(new Double(1)))
+        assertFalse("Diagonal not stored", results.contains(new Double(1)))
         assertTrue(results.contains(new Double("0.493")))
         assertTrue(results.contains(new Double("-0.2432")))
     }
 
+    @Test
+    void testReadCorrelationMatrixSize() {
+        String matrixFile = "test-res/matrix.testing.txt"
+        PearsonsCorrelation pc = new PearsonsCorrelation()
+        int nbNeigbors= 0
+        pc.readCorrelationMatrix(matrixFile)
+        for (int i = 0; i < 4; i++) {
+            nbNeigbors += pc.getUserNeighborhood(i).size()
+        }
+        // only two non NaN values are provided
+        assertEquals(2, nbNeigbors)
+    }
+
+    @Test
+    void testReadCorrelationMatrixValues() {
+        String matrixFile = "test-res/matrix.testing.txt"
+        PearsonsCorrelation pc = new PearsonsCorrelation()
+        pc.readCorrelationMatrix(matrixFile)
+        List<Double> values = new LinkedList<>()
+        for (int i = 0; i < 4; i++) {
+            Set<Neighbor> neighbors = pc.getUserNeighborhood(i)
+            for (Neighbor n: neighbors) {
+                values.add(n.getSimilarity())
+            }
+        }
+        // only two non NaN values are provided
+        assertEquals("Size is ok", 2, values.size())
+        // check that only those two values are there
+        assertEquals(0.9172, values.get(0))
+        assertEquals(0.9172, values.get(1))
+    }
 
     private static String readLine(String file, int lineNo){
         BufferedReader br

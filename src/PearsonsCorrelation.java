@@ -82,24 +82,6 @@ public class PearsonsCorrelation {
         System.out.println("==========================");
     }
 
-
-    /**
-     * Adds a neighbor to the LOL representation of the correlation matrix
-     * @param userId internal id of user whose neighborhood will be modified
-     * @param neighborId neighbor to add
-     * @param sim pearson correlation coefficient
-     */
-
-    private void addNeighbor(int userId, int neighborId, double sim) {
-        if (this.corr.get(userId) == null ) {  //if no neighborhood, create it
-            Set<Neighbor> neighborhood = new HashSet<>();
-            neighborhood.add(new Neighbor(neighborId, sim));
-            this.corr.put(userId, neighborhood);
-        } else {
-            this.corr.get(userId).add(new Neighbor(neighborId, sim));
-        }
-    }
-
     /**
      *  Creates a default, empty object, and sets some parameters. For testing purposes
      */
@@ -115,6 +97,30 @@ public class PearsonsCorrelation {
     public PearsonsCorrelation(MovieHandler ratings, String filename) {
         // FILL IN HERE //
         readCorrelationMatrix(filename);
+    }
+
+    /**
+     * Returns a set with all neighbors from an user
+     * @param userID
+     */
+    public Set<Neighbor> getUserNeighborhood (int userID) {
+        return this.corr.get(userID);
+    }
+
+    /**
+     * Adds a neighbor to the LOL representation of the correlation matrix
+     * @param userId internal id of user whose neighborhood will be modified
+     * @param neighborId neighbor to add
+     * @param sim pearson correlation coefficient
+     */
+    private void addNeighbor(int userId, int neighborId, double sim) {
+        if (this.corr.get(userId) == null ) {  //if no neighborhood, create it
+            Set<Neighbor> neighborhood = new HashSet<>();
+            neighborhood.add(new Neighbor(neighborId, sim));
+            this.corr.put(userId, neighborhood);
+        } else {
+            this.corr.get(userId).add(new Neighbor(neighborId, sim));
+        }
     }
 
 
@@ -315,6 +321,8 @@ public class PearsonsCorrelation {
      * @see this.readCorrelationMatrix
      */
     public void readCorrelationMatrix(String filename) {
+        long start = System.currentTimeMillis();
+        System.out.println("Reading matrix file...");
         BufferedReader br;
         try {
             br = new BufferedReader(new FileReader(filename));
@@ -332,6 +340,10 @@ public class PearsonsCorrelation {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        long elapsedTimeMillis = System.currentTimeMillis() - start;
+        DecimalFormat df = getDecimalFormat();
+        System.out.println("Done, took " + df.format(elapsedTimeMillis/(1000F)) + " seconds");
+        System.out.println("==========================");
     }
 
     /**
