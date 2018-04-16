@@ -24,6 +24,7 @@ public class PearsonsCorrelation {
     /** corr: list of lists implementation of the correlation matrix. Using internal ids.
      * Very sparse matrix: most elements are NaN. They won't be stored to save space.
      * Used sets for O(1) speed of .contains(). Map of sets approaches the LOL
+     * Max size: kNeighbors * N
      **/
     private Map<Integer, Set<Neighbor>> corr;
     private ArrayList<Integer> userIDs;  //maps internal ID to real user ID
@@ -53,7 +54,12 @@ public class PearsonsCorrelation {
         this.userIDs = ratings.getUserIDs();
         this.userAvgRatings = new Double[N];
         this.corr = new HashMap<>(N);
+        // default k: keep all neighbors
+        computeCorrMatrix(ratings, N);
+    }
 
+    private void computeCorrMatrix(MovieHandler ratings, int kNeighbors) {
+        int N = ratings.getNumUsers();
         long start = System.currentTimeMillis();
         System.out.println("Calculating corr matrix...");
         for (int u1 = 0; u1 < N; u1++) {
@@ -72,14 +78,27 @@ public class PearsonsCorrelation {
                 // but speeds up neighborhood retrieval by a factor of k (k = number of neighbors).
                 // NaN are not added -> safes much space
                 if (!Double.isNaN(sim)) {
-                    addNeighbor(u1, u2, sim);
-                    addNeighbor(u2, u1, sim);
+                    addNeighbor(u1, new Neighbor(u2, sim), kNeighbors);
+                    addNeighbor(u2, new Neighbor(u1, sim), kNeighbors);
                 }
             }
         }
         long elapsedTimeMillis = System.currentTimeMillis() - start;
         System.out.println("Done, took " + elapsedTimeMillis/1000F + " seconds");
         System.out.println("==========================");
+
+    }
+
+    /**
+     * Constructor with the kNeighbors parameter
+     */
+    public PearsonsCorrelation(MovieHandler ratings, int kNeighbors) {
+        super();
+        int N = ratings.getNumUsers();
+        this.userIDs = ratings.getUserIDs();
+        this.userAvgRatings = new Double[N];
+        this.corr = new HashMap<>(N);
+        computeCorrMatrix(ratings, kNeighbors);
     }
 
     /**
@@ -95,32 +114,163 @@ public class PearsonsCorrelation {
      * Load a previously computed PearsonsCorrelation instance.
      */
     public PearsonsCorrelation(MovieHandler ratings, String filename) {
-        // FILL IN HERE //
+        super();
+        int N = ratings.getNumUsers();
+        this.userIDs = ratings.getUserIDs();
+        this.userAvgRatings = new Double[N];
+        this.corr = new HashMap<>(N);
+
+        long start = System.currentTimeMillis();
+        System.out.println("Calculating usrs average ratings...");
+        for (int u = 0; u < N; u++) {
+            int userID = this.userIDs.get(u);
+            List<MovieRating> r = ratings.getUsersToRatings().get(userID);
+            setUserAvgRating(u, r);
+            }
+        long elapsedTimeMillis = System.currentTimeMillis() - start;
+        System.out.println("Done, took " + elapsedTimeMillis/1000F + " seconds");
+        System.out.println("==========================");
         readCorrelationMatrix(filename);
     }
 
     /**
+     * Computes the Pearson's product-moment correlation coefficient between
+     * the ratings of two users. It reads the user ids from class attributes
+     * rather than function parameters (skeletons cannot be modified)
+     *
+     * Returns {@code NaN} if the correlation coefficient is not defined.
+     *
+     * @param xRatings first data array
+     * @param yRatings second data array
+     * @return Returns Pearson's correlation coefficient for the two arrays
+     */
+    public double correlation(List<MovieRating> xRatings, List<MovieRating> yRatings) {
+        double xAvg = setUserAvgRating(this.currentUser1, xRatings);
+        double yAvg = setUserAvgRating(this.currentUser2, yRatings);
+        double cov = 0, xVar = 0, yVar = 0;
+        int common = 0;
+        for (MovieRating ratingX:  xRatings){
+            for (MovieRating ratingY: yRatings){
+                if (ratingX.getMovieID() == ratingY.getMovieID()) {
+                    common++;
+                    double xErr = ratingX.getRating() - xAvg;
+                    double yErr = ratingY.getRating() - yAvg;
+                    cov += xErr * yErr;
+                    xVar += Math.pow(xErr, 2);
+                    yVar += Math.pow(yErr, 2);
+                    break;  // movieIDs are unique per user. Once two match, search the next one (continue the outer loop)
+                }
+            }
+        }
+        /* TODO:
+        * Add k neighbors filtering
+        * Add significance (t-test)
+        * Add minimal common films
+         */
+        if (common == 0) // nothing in common
+            return Double.NaN;
+        else if (xVar == 0 || yVar == 0)
+            // int this case the equation is undefined, it is a limitation of the pearson coefficient.
+            // the equation becomes undetermined (0/0), even if all data is the same.
+            // see: https://stats.stackexchange.com/questions/9068/pearson-correlation-of-data-sets-with-possibly-zero-standard-deviation
+            return Double.NaN;
+        else
+            return cov / Math.sqrt(xVar * yVar);
+    }
+
+    /**
+     * Retrieves user average rating if it was calculated previously, and calculates it and stores
+     * if necessary
+     * @param user internal id of user that ratings belongs to
+     * @return the avg rating for that user
+     */
+    private double setUserAvgRating(int user, List<MovieRating> ratings){
+        double avg;
+        if (this.userAvgRatings[user] == null){  //avg non existent: calculate it
+            //avg = ratings.stream().mapToDouble(MovieRating::getRating).average().getAsDouble();
+            avg = meanRating(ratings);
+            this.userAvgRatings[user] = avg;
+        } else {   //avg was calculated previously
+            avg = this.userAvgRatings[user];
+        }
+        return avg;
+    }
+
+    /**
+     * Calculates the mean rating for a list of movies. Used to get an user mean rating
+     */
+    private double meanRating(List<MovieRating> ratings) {
+        double sum = 0;
+        for (MovieRating r: ratings) {
+            sum += r.getRating();
+        }
+        return sum/ratings.size();
+    }
+
+
+
+    /**
      * Returns a set with all neighbors from an user
-     * @param userID
+     * @param userID internal ID
      */
     public Set<Neighbor> getUserNeighborhood (int userID) {
         return this.corr.get(userID);
     }
 
     /**
-     * Adds a neighbor to the LOL representation of the correlation matrix
-     * @param userId internal id of user whose neighborhood will be modified
-     * @param neighborId neighbor to add
-     * @param sim pearson correlation coefficient
+     * Finds the nei
+     * @param neighbors neighbourhood of a user
+     * @return
      */
-    private void addNeighbor(int userId, int neighborId, double sim) {
-        if (this.corr.get(userId) == null ) {  //if no neighborhood, create it
-            Set<Neighbor> neighborhood = new HashSet<>();
-            neighborhood.add(new Neighbor(neighborId, sim));
-            this.corr.put(userId, neighborhood);
-        } else {
-            this.corr.get(userId).add(new Neighbor(neighborId, sim));
+    public Neighbor getLeastSimilarNeighbour (Set<Neighbor> neighbors) {
+        //start by max posssible value
+        double leastSim = 1;
+        int leastID = 1000;
+        for (Neighbor n: neighbors) {
+            //note: could use .abs (considering disimilarity too)
+            if (n.getSimilarity() < leastSim) {
+                leastSim = n.getSimilarity();
+                leastID = n.getUserID();
+            }
         }
+        return new Neighbor(leastID, leastSim);
+    }
+
+    /**
+     * Adds a neighbor to the LOL representation of the correlation matrix,
+     * if it is possible. Also creates a neighborhood if necessary
+     * @param userId internal id of user whose neighborhood will be modified
+     * @param newNeighbor neighbor to add
+     * @param k max size of the neighbourhood
+     */
+    public void addNeighbor(int userId, Neighbor newNeighbor, int k) {
+        // create new neighborhood if it doesn't exist
+        if (this.corr.get(userId) == null ) {
+            Set<Neighbor> neighborhood = new HashSet<>();
+            neighborhood.add(newNeighbor);
+            this.corr.put(userId, neighborhood);
+        // if k limit is exceeded, check if something can be removed
+        } else if (getUserNeighborhood(userId).size() > k) {
+            Neighbor leastSim = getLeastSimilarNeighbour(getUserNeighborhood(userId));
+            // remove leastSim if similarity is lower than the new neighbor
+            // do nothing if new neighbor is les similar
+            if (leastSim.compareTo(newNeighbor) == -1) {
+                this.corr.get(userId).remove(leastSim);
+                this.corr.get(userId).add(newNeighbor);
+            }
+         // neighborhood exists, and size is not exceeded
+        } else {
+            this.corr.get(userId).add(newNeighbor);
+        }
+    }
+
+    /**
+     * Returns an user avg rating, calculated already during class construction
+     * @param userID
+     * @return
+     */
+    public double getUserAvgRating(int userID) {
+        return this.userAvgRatings[userID];
     }
 
 
@@ -161,76 +311,6 @@ public class PearsonsCorrelation {
         return Double.NaN; // should never be reached
     }
 
-
-
-    /**
-     * Computes the Pearson's product-moment correlation coefficient between
-     * the ratings of two users. It reads the user ids from class attributes
-     * rather than function parameters (skeletons cannot be modified)
-     *
-     * Returns {@code NaN} if the correlation coefficient is not defined.
-     *
-     * @param xRatings first data array
-     * @param yRatings second data array
-     * @return Returns Pearson's correlation coefficient for the two arrays
-     */
-    public double correlation(List<MovieRating> xRatings, List<MovieRating> yRatings) {
-        double xAvg = setUserAvgRating(this.currentUser1, xRatings);
-        double yAvg = setUserAvgRating(this.currentUser2, yRatings);
-        double cov = 0, xVar = 0, yVar = 0;
-        int common = 0;
-        for (MovieRating ratingX:  xRatings){
-            for (MovieRating ratingY: yRatings){
-                if (ratingX.getMovieID() == ratingY.getMovieID()) {
-                    common++;
-                    double xErr = ratingX.getRating() - xAvg;
-                    double yErr = ratingY.getRating() - yAvg;
-                    cov += xErr * yErr;
-                    xVar += Math.pow(xErr, 2);
-                    yVar += Math.pow(yErr, 2);
-                    break;  // movieIDs are unique per user. Once two match, search the next one (continue the outer loop)
-                }
-            }
-        }
-        if (common == 0) // nothing in common
-            return Double.NaN;
-        else if (xVar == 0 || yVar == 0)
-            // int this case the equation is undefined, it is a limitation of the pearson coefficient.
-            // the equation becomes undetermined (0/0), even if all data is the same.
-            // see: https://stats.stackexchange.com/questions/9068/pearson-correlation-of-data-sets-with-possibly-zero-standard-deviation
-            return Double.NaN;
-        else
-            return cov / Math.sqrt(xVar * yVar);
-    }
-
-    /**
-     * Retrieves user average rating if it was calculated previously, and calculates it and stores
-     * if necessary
-     * @param user internal id of user that ratings belongs to
-     * @return the avg rating for that user
-     */
-    private double setUserAvgRating(int user, List<MovieRating> ratings){
-        double avg;
-        if (this.userAvgRatings[user] == null){  //avg non existent: calculate it
-            //avg = ratings.stream().mapToDouble(MovieRating::getRating).average().getAsDouble();
-            avg = meanRating(ratings);
-            this.userAvgRatings[user] = avg;
-        } else {   //avg was calculated previously
-            avg = this.userAvgRatings[user];
-        }
-        return avg;
-    }
-
-    /**
-     * Calculates the mean rating for a list of movies. Used to get an user mean rating
-     */
-    private double meanRating(List<MovieRating> ratings) {
-        double sum = 0;
-        for (MovieRating r: ratings) {
-            sum += r.getRating();
-        }
-        return sum/ratings.size();
-    }
 
 
     /**
