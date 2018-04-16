@@ -52,7 +52,7 @@ public class PearsonsCorrelation {
         int N = ratings.getNumUsers();
         this.userIDs = ratings.getUserIDs();
         this.userAvgRatings = new Double[N];
-        this.corr = new HashMap<>();
+        this.corr = new HashMap<>(N);
 
         long start = System.currentTimeMillis();
         System.out.println("Calculating corr matrix...");
@@ -189,7 +189,7 @@ public class PearsonsCorrelation {
         if (common == 0) // nothing in common
             return Double.NaN;
         else if (xVar == 0 || yVar == 0)
-            // int this cse the equation is undefined, it is a limitation of the pearson coefficient.
+            // int this case the equation is undefined, it is a limitation of the pearson coefficient.
             // the equation becomes undetermined (0/0), even if all data is the same.
             // see: https://stats.stackexchange.com/questions/9068/pearson-correlation-of-data-sets-with-possibly-zero-standard-deviation
             return Double.NaN;
@@ -266,7 +266,7 @@ public class PearsonsCorrelation {
             bw.write(Integer.toString(N));
             bw.newLine();
 
-            //second line
+            //second line - parameters
             bw.write("param1=raul,param2=vazquez");
             bw.newLine();
 
@@ -315,7 +315,47 @@ public class PearsonsCorrelation {
      * @see this.readCorrelationMatrix
      */
     public void readCorrelationMatrix(String filename) {
-        // FILL IN HERE //
+        BufferedReader br;
+        try {
+            br = new BufferedReader(new FileReader(filename));
+            String line;
+            int N = Integer.parseInt(br.readLine());
+            this.corr = new HashMap<>(N);
+            String params = br.readLine();
+            for (int userID = 0; userID < N; userID ++) { //N lines will be read
+            // while ((line = br.readLine()) != null) {
+                line = br.readLine();
+                Set<Neighbor> neighbors = parseLine(line, N);
+                this.corr.put(userID, neighbors);
+            }
+            br.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Extracts the neighborhood of the user given by matrixLine
+     * @param matrixLine string containing comma separated values with correlations
+     * @param N size of the matrix - elements in the line
+     * @return a Set of Neighbors
+     */
+    public Set<Neighbor> parseLine(String matrixLine, int N) {
+        String[] values = matrixLine.split(",");
+        Set<Neighbor> neighbors = new HashSet<>();
+        for (int neighborID = 0; neighborID < N; neighborID++) {
+            String sim = values[neighborID];
+            if (sim.equals("NaN")) { //NaN are not stored
+                continue;
+            } else if (sim.startsWith("-.")) {
+                sim = sim.replace("-.", "-0.");
+            } else if (sim.startsWith(".")) {
+                sim = sim.replace(".", "0.");
+            }
+            // parseDouble returns primitive type
+            neighbors.add(new Neighbor(neighborID, Double.parseDouble(sim)));
+        }
+        return neighbors;
     }
 
 

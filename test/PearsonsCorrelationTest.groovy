@@ -195,6 +195,33 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         assertEquals("Test Passed", 4,  len)
     }
 
+    @Test
+    void testParseLineCorrelations() {
+        String line = "1.0000,.4930,-.2432,NaN"
+        PearsonsCorrelation pc = new PearsonsCorrelation()
+        Set<Neighbor> neighbors = pc.parseLine(line, 4)
+        Set<Double> results = new HashSet<>(4)
+        for (Neighbor n: neighbors) {
+            double sim = n.getSimilarity()
+            results.add(sim)
+        }
+        print results
+        assertEquals("Line size is ok", 3, results.size())
+        assertTrue(results.contains(new Double(1)))
+        assertTrue(results.contains(new Double("0.493")))
+        assertTrue(results.contains(new Double("-0.2432")))
+    }
+
+    @Test
+    void testParseLineIDs() {
+        String line = "NaN,NaN,NaN,1"
+        PearsonsCorrelation pc = new PearsonsCorrelation()
+        Set<Neighbor> neighbors = pc.parseLine(line, 4)
+        assertEquals("Line size is ok", 1, neighbors.size())
+        //check if internal ID is properly assigned
+        assertTrue("Ids processed correctly", neighbors.contains(new Neighbor(3, 0)))
+    }
+
     private static String readLine(String file, int lineNo){
         BufferedReader br
         try {
