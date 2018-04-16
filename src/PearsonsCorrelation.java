@@ -325,7 +325,7 @@ public class PearsonsCorrelation {
             for (int userID = 0; userID < N; userID ++) { //N lines will be read
             // while ((line = br.readLine()) != null) {
                 line = br.readLine();
-                Set<Neighbor> neighbors = parseLine(line, N);
+                Set<Neighbor> neighbors = parseLine(line, userID, N);
                 this.corr.put(userID, neighbors);
             }
             br.close();
@@ -340,12 +340,14 @@ public class PearsonsCorrelation {
      * @param N size of the matrix - elements in the line
      * @return a Set of Neighbors
      */
-    public Set<Neighbor> parseLine(String matrixLine, int N) {
+    public Set<Neighbor> parseLine(String matrixLine, int currentUser, int N) {
         String[] values = matrixLine.split(",");
         Set<Neighbor> neighbors = new HashSet<>();
         for (int neighborID = 0; neighborID < N; neighborID++) {
             String sim = values[neighborID];
             if (sim.equals("NaN")) { //NaN are not stored
+                continue;
+            } else if (currentUser == neighborID) {  // diagonals are not stored (always 1.000)
                 continue;
             } else if (sim.startsWith("-.")) {
                 sim = sim.replace("-.", "-0.");
