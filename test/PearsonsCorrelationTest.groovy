@@ -274,6 +274,15 @@ class PearsonsCorrelationTest extends GroovyTestCase {
         assertEquals(0.9172, values.get(1))
     }
 
+    @Test
+    void testReadMatrixFromFile() {
+        String trainingFile = "test-res/ra.testing.txt"
+        String matrixFile = "test-res/matrix.testing.txt"
+        MovieHandler ratings = new MovieHandler(trainingFile)
+        PearsonsCorrelation p = new PearsonsCorrelation(ratings, matrixFile)
+        assertEquals(5, p.getUserAvgRating(0))
+    }
+
     private static String readLine(String file, int lineNo){
         BufferedReader br
         try {
