@@ -52,6 +52,10 @@ matrix: $(BIN)PearsonsCorrelation.class
 	@echo "Constructing Pearsons correlation matrix"
 	time java -cp .:$(BIN) PearsonsCorrelation -trainingFile data/ra.train -outputFile data/ra.matrix
 
+matrix_lab: $(BIN)PearsonsCorrelation.class
+	@echo "Constructing Pearsons correlation matrix"
+	time java -cp .:$(BIN) PearsonsCorrelation -trainingFile data/ra.train -outputFile /tmp/data/ra.matrix
+
 matrix_small: $(BIN)PearsonsCorrelation.class
 	@echo "Constructing Pearsons correlation matrix"
 	time java -cp .:$(BIN) PearsonsCorrelation -trainingFile data/ra.small.train -outputFile data/ra.small.matrix

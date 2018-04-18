@@ -458,6 +458,7 @@ public class PearsonsCorrelation {
     public static void main(String[] args) {
         String trainingFile = "";
         String outputFile = "";
+        int kNeighbors = 0;
 
         int i = 0;
         while (i < args.length && args[i].startsWith("-")) {
@@ -466,13 +467,20 @@ public class PearsonsCorrelation {
                 trainingFile = args[i+1];
             } else if(arg.equals("-outputFile")) {
                 outputFile = args[i+1];
+            } else if(arg.equals("-kNeighbors")) {
+                kNeighbors = Integer.parseInt(args[i+1]);
             }
             // ADD ADDITIONAL PARAMETERS //
             i += 2;
         }
 
         MovieHandler ratings = new MovieHandler(trainingFile);
-        PearsonsCorrelation matrix = new PearsonsCorrelation(ratings);
+        PearsonsCorrelation matrix;
+        if (kNeighbors > 0)
+            matrix = new PearsonsCorrelation(ratings, kNeighbors);
+        else
+            matrix = new PearsonsCorrelation(ratings);
+
         matrix.writeCorrelationMatrix(outputFile);
     }
 
