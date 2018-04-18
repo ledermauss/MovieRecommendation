@@ -22,14 +22,61 @@ public class MovieRunner {
 
     /**
      * Predict the rating of user with external id externUserID for movie with id movieID.
+     * Uses
      *
      * @param externUserID external id of user whose rating should be predict
      * @param movieID movie for which the rating should be predicted
      * @return the predicted rating
      */
     public static double predictRating(int externUserID, int movieID){
-    	double rating = MovieHandler.DEFAULT_RATING;
-        return rating;
+        double rating = 0;
+        int internUserID = ratings.getUserIDs().indexOf(externUserID);
+        Set<Neighbor> neighborhood = similarities.getUserNeighborhood(internUserID);
+        List <MovieRating> userRatings = ratings.getUsersToRatings().get(externUserID);
+
+
+        // get the user mean rating (should be calculated)
+        double userAvgRating = similarities.getUserAvgRating(internUserID);
+
+        double weightSum = 0;
+        double neighborContributions = 0;
+        for (Neighbor n: neighborhood) {
+            //get internal and external id
+            int internNeighborID = n.id;
+            int externNeighborID = ratings.getUserIDs().get(internNeighborID);
+            // get the weight, add it to paramater a
+            double weight = n.getSimilarity();
+            //get its ratings
+            List<MovieRating> neighborRatings = ratings.getUsersToRatings().get(externNeighborID);
+            //if the neighbor rated the film, compute difference with the average and sum
+            double filmRating = getFilmRating(userRatings, movieID);
+            if (filmRating > 0) {
+                // Rj
+                double neighAvgRating = similarities.getUserAvgRating(internNeighborID);
+                // wij * (Rjk - Rj)
+                neighborContributions += weight * (filmRating - neighAvgRating);
+                weightSum += Math.abs(weight); //try setting it out of here
+            }
+        }
+        // if no neighbor rated the film, just return the user average
+        rating = (weightSum > 0) ? userAvgRating + (neighborContributions/weightSum) : userAvgRating;
+        if (rating > 5) return 5;
+        else if (rating < 0) return 0;
+        else return rating;
+    }
+
+
+    /**
+     *
+     * @param movies user ratings
+     * @param movieID movie to check wether
+     * @return
+     */
+    public static double getFilmRating(List<MovieRating> movies, int movieID) {
+        for (MovieRating mr : movies) {
+            if (mr.getMovieID() == movieID) return mr.getRating();
+        }
+        return 0;
     }
 
 

@@ -66,6 +66,7 @@ public class PearsonsCorrelation {
             int user1 = this.userIDs.get(u1);
             // u2 = u1: since matrix is simmetric, correlations are calculated only once
             // and stored twice, once for each user in the pair
+            if (u1 % 1000 == 0) System.out.println("Currently at user: " + u1);
             for (int u2 = u1 + 1; u2 < N; u2++) {
                 int user2 = this.userIDs.get(u2);
                 // pass info to correlation function, and extract the ratings
@@ -78,6 +79,7 @@ public class PearsonsCorrelation {
                 // but speeds up neighborhood retrieval by a factor of k (k = number of neighbors).
                 // NaN are not added -> saves much space
                 if (!Double.isNaN(sim)) {
+                    // stored neighbor: uses internal id
                     addNeighbor(u1, new Neighbor(u2, sim), kNeighbors);
                     addNeighbor(u2, new Neighbor(u1, sim), kNeighbors);
                 }
@@ -123,8 +125,8 @@ public class PearsonsCorrelation {
         long start = System.currentTimeMillis();
         System.out.println("Calculating usrs average ratings...");
         for (int u = 0; u < N; u++) {
-            int userID = this.userIDs.get(u);
-            List<MovieRating> r = ratings.getUsersToRatings().get(userID);
+            int externID = this.userIDs.get(u);
+            List<MovieRating> r = ratings.getUsersToRatings().get(externID);
             setUserAvgRating(u, r);
             }
         long elapsedTimeMillis = System.currentTimeMillis() - start;
@@ -185,7 +187,7 @@ public class PearsonsCorrelation {
      * @param user internal id of user that ratings belongs to
      * @return the avg rating for that user
      */
-    private double setUserAvgRating(int user, List<MovieRating> ratings){
+    public double setUserAvgRating(int user, List<MovieRating> ratings){
         double avg;
         if (this.userAvgRatings[user] == null){  //avg non existent: calculate it
             //avg = ratings.stream().mapToDouble(MovieRating::getRating).average().getAsDouble();
@@ -215,6 +217,7 @@ public class PearsonsCorrelation {
     public Set<Neighbor> getUserNeighborhood (int userID) {
         return this.corr.get(userID);
     }
+
 
     /**
      * Adds a neighbor to the LOL representation of the correlation matrix,
@@ -269,10 +272,12 @@ public class PearsonsCorrelation {
     /**
      * Returns an user avg rating, calculated already during class construction
      * @param userID
-     * @return
+     * @return NaN if non existent, the avg rating if it exists
      */
     public double getUserAvgRating(int userID) {
-        return this.userAvgRatings[userID];
+        if (this.userAvgRatings[userID] == null)
+            return Double.NaN;
+        else return this.userAvgRatings[userID];
     }
 
 
@@ -413,7 +418,6 @@ public class PearsonsCorrelation {
             this.corr = new HashMap<>(N);
             String params = br.readLine();
             for (int userID = 0; userID < N; userID ++) { //N lines will be read
-            // while ((line = br.readLine()) != null) {
                 line = br.readLine();
                 Set<Neighbor> neighbors = parseLine(line, userID, N);
                 this.corr.put(userID, neighbors);
@@ -431,6 +435,7 @@ public class PearsonsCorrelation {
     /**
      * Extracts the neighborhood of the user given by matrixLine
      * @param matrixLine string containing comma separated values with correlations
+     * @param currentUser internal id of user corresponding to the line
      * @param N size of the matrix - elements in the line
      * @return a Set of Neighbors
      */

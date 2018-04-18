@@ -68,6 +68,20 @@ predict_small: $(BIN)MovieRunner.class
 	@echo "Testing the prediction of movie ratings on the full dataset"
 	time java -cp .:$(BIN) MovieRunner -trainingFile data/ra.small.train -testFile data/ra.small.test -matrixFile data/ra.small.matrix
 
+matrix_10k: $(BIN)PearsonsCorrelation.class
+	@echo "Constructing Pearsons correlation matrix"
+	time java -cp .:$(BIN) PearsonsCorrelation -trainingFile data/ra10k.train -outputFile data/ra10k.matrix
+predict_10k: $(BIN)MovieRunner.class
+	@echo "Testing the prediction of movie ratings on the full dataset"
+	time java -cp .:$(BIN) MovieRunner -trainingFile data/ra10k.train -testFile data/ra10k.test -matrixFile data/ra10k.matrix
+
+matrix_1k: $(BIN)PearsonsCorrelation.class
+	@echo "Constructing Pearsons correlation matrix"
+	time java -cp .:$(BIN) PearsonsCorrelation -trainingFile data/ra1k.train -outputFile data/ra1k.matrix
+predict_1k: $(BIN)MovieRunner.class
+	@echo "Testing the prediction of movie ratings on the full dataset"
+	time java -cp .:$(BIN) MovieRunner -trainingFile data/ra1k.train -testFile data/ra1k.test -matrixFile data/ra1k.matrix
+clean : 
 clean : 
 	rm -rf $(BIN)*
 
