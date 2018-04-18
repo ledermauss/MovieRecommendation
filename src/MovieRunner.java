@@ -32,8 +32,6 @@ public class MovieRunner {
         double rating = 0;
         int internUserID = ratings.getUserIDs().indexOf(externUserID);
         Set<Neighbor> neighborhood = similarities.getUserNeighborhood(internUserID);
-        List <MovieRating> userRatings = ratings.getUsersToRatings().get(externUserID);
-
 
         // get the user mean rating (should be calculated)
         double userAvgRating = similarities.getUserAvgRating(internUserID);
@@ -49,13 +47,14 @@ public class MovieRunner {
             //get its ratings
             List<MovieRating> neighborRatings = ratings.getUsersToRatings().get(externNeighborID);
             //if the neighbor rated the film, compute difference with the average and sum
-            double filmRating = getFilmRating(userRatings, movieID);
+            double filmRating = getFilmRating(neighborRatings, movieID);
             if (filmRating > 0) {
+                //normalize the weights
+                weightSum += Math.abs(weight);
                 // Rj
                 double neighAvgRating = similarities.getUserAvgRating(internNeighborID);
                 // wij * (Rjk - Rj)
                 neighborContributions += weight * (filmRating - neighAvgRating);
-                weightSum += Math.abs(weight); //try setting it out of here
             }
         }
         // if no neighbor rated the film, just return the user average

@@ -177,7 +177,10 @@ public class PearsonsCorrelation {
             return Double.NaN;
         else {
             double corr = cov / Math.sqrt(xVar * yVar);
-            return (corr > 1)? 1 : corr; //patch to rounding problem (sometimes returned 1.000000000002)
+            //patch to rounding problem (sometimes returned 1.000000000002)
+            if (corr > 1) return 1;
+            else if (corr < -1) return -1;
+            else return corr;
         }
     }
 
@@ -259,8 +262,9 @@ public class PearsonsCorrelation {
         double leastSim = Double.MAX_VALUE;
         int leastID = 1000;
         for (Neighbor n: neighbors) {
-            //note: could use .abs (considering disimilarity too)
-            if (n.getSimilarity() < leastSim) {
+            //Why abs? Because strong dissimilarity is more informative than
+            //weak similarity. Tested, and improves results slightly
+            if (Math.abs(n.getSimilarity()) < leastSim) {
                 leastSim = n.getSimilarity();
                 leastID = n.getUserID();
             }
